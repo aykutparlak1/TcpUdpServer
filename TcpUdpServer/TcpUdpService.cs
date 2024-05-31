@@ -1,24 +1,34 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TcpUdpServer.Features;
 
 namespace TcpUdpServer
 {
     public class TcpUdpService : ServiceBase
     {
         private TcpListener tcpListener;
-        private UdpClient udpClient;
         private CancellationTokenSource cancellationTokenSource;
         private Task tcpTask;
-        private Task udpTask;
+        private readonly IGetInformationService _getInformationService;
 
         public TcpUdpService()
         {
-            InitializeComponent();
+            this.ServiceName = "TcpUdpServerService";
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            var serviceProvider = services.BuildServiceProvider();
+            _getInformationService = serviceProvider.GetRequiredService<IGetInformationService>();
+        }
+
+        private void ConfigureServices(IServiceCollection services)
+        {
+            services.AddSingleton<IGetInformationService, GetInformationManager>();
         }
 
         protected override void OnStart(string[] args)
@@ -26,14 +36,13 @@ namespace TcpUdpServer
             cancellationTokenSource = new CancellationTokenSource();
 
             tcpTask = Task.Run(() => StartTcpServer(cancellationTokenSource.Token));
-            //udpTask = Task.Run(() => StartUdpServer(cancellationTokenSource.Token));
+            
         }
 
         protected override void OnStop()
         {
             cancellationTokenSource.Cancel();
             tcpListener?.Stop();
-            //udpClient?.Close();
         }
 
         private void StartTcpServer(CancellationToken token)
@@ -50,10 +59,10 @@ namespace TcpUdpServer
                     if (tcpListener.Pending())
                     {
                         TcpClient client = tcpListener.AcceptTcpClient();
-                        Task.Run(() => HandleTcpClient(client, token));
+                        Task.Run(() => HandleTcpClientAsync(client, token));
                     }
 
-                    Thread.Sleep(100); // CPU kullanımını düşürmek için
+                    Thread.Sleep(100);
                 }
             }
             catch (Exception e)
@@ -62,78 +71,92 @@ namespace TcpUdpServer
             }
         }
 
-        private void HandleTcpClient(TcpClient client, CancellationToken token)
+        private async Task HandleTcpClientAsync(TcpClient client, CancellationToken token)
         {
-            using (NetworkStream stream = client.GetStream())
+            NetworkStream stream = client.GetStream();
+
+            try
             {
-                // PowerShell komutunu gönder
-                string command = "Get-Process";
-                byte[] commandBytes = Encoding.ASCII.GetBytes(command);
-                stream.Write(commandBytes, 0, commandBytes.Length);
-
-                // Client'tan gelen sonucu oku
-                byte[] data = new byte[1024];
-                int bytesRead = stream.Read(data, 0, data.Length);
-                string responseData = Encoding.ASCII.GetString(data, 0, bytesRead);
-
+                byte[] buffer = new byte[1024];
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                string[] parts = data.Split(':');
+                if (parts.Length == 4)
+                {
+                    string username = parts[0];
+                    string password = parts[1];
+                    string req = parts[2];
+                    string parametre = parts[3];
+                    if (IsUserAuthenticated(username, password))
+                    {
+                        string response;
+                        switch (req)
+                        {
+                            case "BaseBoard":
+                                response= await _getInformationService.GetBaseBoardInformation();
+                                break;
+                            case "NetworkInfo":
+                                response = await _getInformationService.GetNetworkInformations();
+                                break;
+                            case "DiskDrive":
+                                response = await _getInformationService.GetDiskDriveInformation();
+                                break;
+                            case "OperatingSystemInfo":
+                                response = await _getInformationService.GetOperatingSystemInformation();
+                                break;
+                            case "ProcessorInfo":
+                                response = await _getInformationService.GetProcessorInformation();
+                                break;
+                            case "RamInfo":
+                                response = await _getInformationService.GetRamInformation();
+                                break;
+                            case "ServicesInfo":
+                                response = await _getInformationService.GetService(parametre);
+                                break;
+                            default:
+                                response = "InformationNotFound";
+                                break;
+                        }
+                        
+                        byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                        stream.Write(responseBytes, 0, responseBytes.Length);
+                    }
+                    else
+                    {
+                        string responseMessage = "Authentication failed";
+                        byte[] responseBytes = Encoding.UTF8.GetBytes(responseMessage);
+                        stream.Write(responseBytes, 0, responseBytes.Length);
+                    }
+                }
+                else
+                {
+                    string responseMessage = "Invalid data format";
+                    byte[] responseBytes = Encoding.UTF8.GetBytes(responseMessage);
+                    stream.Write(responseBytes, 0, responseBytes.Length);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Hata ayıklama ve logging için burayı kullanın
+            }
+            finally
+            {
+                stream.Close();
                 client.Close();
             }
         }
 
-        //private void StartUdpServer(CancellationToken token)
-        //{
-        //    try
-        //    {
-        //        Int32 port = 13001;
-        //        udpClient = new UdpClient(port);
-
-        //        IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, port);
-
-        //        while (!token.IsCancellationRequested)
-        //        {
-        //            if (udpClient.Available > 0)
-        //            {
-        //                byte[] data = udpClient.Receive(ref remoteEndPoint);
-        //                string receivedData = Encoding.ASCII.GetString(data);
-
-        //                // Gelen komutu çalıştır ve sonucu gönder
-        //                string result = ExecutePowerShellCommand(receivedData);
-        //                byte[] resultBytes = Encoding.ASCII.GetBytes(result);
-        //                udpClient.Send(resultBytes, resultBytes.Length, remoteEndPoint);
-        //            }
-
-        //            Thread.Sleep(100); // CPU kullanımını düşürmek için
-        //        }
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        // Hata ayıklama ve logging için burayı kullanın
-        //    }
-        //}
-
-        private string ExecutePowerShellCommand(string command)
+        private bool IsUserAuthenticated(string username, string password)
         {
-            using (System.Diagnostics.Process process = new System.Diagnostics.Process())
-            {
-                process.StartInfo.FileName = "powershell.exe";
-                process.StartInfo.Arguments = $"-Command \"{command}\"";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.Start();
+            // Örnek olarak hardcoded bir kullanıcı adı ve şifre ile doğrulama yapalım
+            // Gerçek uygulamada bu verileri veritabanından veya güvenli bir yerden almalısınız
+            string expectedUsername = "user";
+            string expectedPassword = "password";
 
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                return string.IsNullOrWhiteSpace(error) ? output : error;
-            }
+            return username == expectedUsername && password == expectedPassword;
         }
-
-        private void InitializeComponent()
-        {
-            this.ServiceName = "TcpUdpServerService";
+        public void onDebug(){
+            OnStart(null);
         }
     }
 }

@@ -5,16 +5,24 @@ VisualStudioVersion = 17.7.34018.315
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpUdpServer", "TcpUdpServer\TcpUdpServer.csproj", "{9265CBA0-7B66-4877-8FEE-E1CFF0699468}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "TcpUdpServerInstaller", "TcpUdpServerInstaller\TcpUdpServerInstaller.vdproj", "{76531342-DE63-4F88-8F8B-96FFA473D5D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		All|Any CPU = All|Any CPU
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.All|Any CPU.ActiveCfg = Release|Any CPU
+		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.All|Any CPU.Build.0 = Release|Any CPU
 		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9265CBA0-7B66-4877-8FEE-E1CFF0699468}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76531342-DE63-4F88-8F8B-96FFA473D5D1}.All|Any CPU.ActiveCfg = Debug
+		{76531342-DE63-4F88-8F8B-96FFA473D5D1}.Debug|Any CPU.ActiveCfg = Debug
+		{76531342-DE63-4F88-8F8B-96FFA473D5D1}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
