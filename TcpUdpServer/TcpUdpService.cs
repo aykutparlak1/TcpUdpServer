@@ -36,7 +36,7 @@ namespace TcpUdpServer
             cancellationTokenSource = new CancellationTokenSource();
 
             tcpTask = Task.Run(() => StartTcpServer(cancellationTokenSource.Token));
-            
+
         }
 
         protected override void OnStop()
@@ -93,7 +93,7 @@ namespace TcpUdpServer
                         switch (req)
                         {
                             case "BaseBoard":
-                                response= await _getInformationService.GetBaseBoardInformation();
+                                response = await _getInformationService.GetBaseBoardInformation();
                                 break;
                             case "NetworkInfo":
                                 response = await _getInformationService.GetNetworkInformations();
@@ -117,7 +117,7 @@ namespace TcpUdpServer
                                 response = "InformationNotFound";
                                 break;
                         }
-                        
+
                         byte[] responseBytes = Encoding.UTF8.GetBytes(response);
                         stream.Write(responseBytes, 0, responseBytes.Length);
                     }
@@ -148,15 +148,10 @@ namespace TcpUdpServer
 
         private bool IsUserAuthenticated(string username, string password)
         {
-            // Örnek olarak hardcoded bir kullanıcı adı ve şifre ile doğrulama yapalım
-            // Gerçek uygulamada bu verileri veritabanından veya güvenli bir yerden almalısınız
             string expectedUsername = "user";
             string expectedPassword = "password";
 
             return username == expectedUsername && password == expectedPassword;
-        }
-        public void onDebug(){
-            OnStart(null);
         }
     }
 }
